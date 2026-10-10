@@ -1,0 +1,259 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream-50: #fdfaf5;
+  --color-cream-100: #faf4ea;
+  --color-cream-200: #f2e6d4;
+  --color-cream-300: #e6d3b8;
+
+  --color-espresso-50: #f7f2ed;
+  --color-espresso-100: #ece0d3;
+  --color-espresso-300: #a9886b;
+  --color-espresso-500: #7a4a2b;
+  --color-espresso-600: #653c22;
+  --color-espresso-700: #5a3420;
+  --color-espresso-800: #3f2415;
+  --color-espresso-900: #2a1810;
+  --color-espresso-950: #1a0f0a;
+
+  --color-caramel-400: #d9a066;
+  --color-caramel-500: #c2813f;
+  --color-caramel-600: #a4662f;
+
+  --color-accent-300: #93c5fd;
+  --color-accent-400: #60a5fa;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+}
+
+@layer base {
+  :root {
+    --surface: var(--color-cream-50);
+    --surface-raised: #ffffff;
+    --surface-sunken: var(--color-cream-100);
+    --line: color-mix(in oklab, var(--color-espresso-300) 32%, transparent);
+    --line-strong: color-mix(in oklab, var(--color-espresso-500) 45%, transparent);
+    --text: var(--color-espresso-900);
+    /* Secondary text carries most of the numbers and labels in this app, so it
+       is held above 4.5:1 rather than being decoration. "Faint" is for
+       timestamps and captions, never for anything you have to act on. */
+    --text-muted: color-mix(in oklab, var(--color-espresso-700) 84%, transparent);
+    --text-faint: color-mix(in oklab, var(--color-espresso-700) 66%, transparent);
+    --brand: var(--color-espresso-500);
+    --brand-soft: color-mix(in oklab, var(--color-caramel-400) 22%, transparent);
+    /* Blue is for one job only: saying "this is the one you are on". Selection,
+       focus and active tabs. The warm palette stays the brand. */
+    --accent: var(--color-accent-700);
+    --accent-soft: color-mix(in oklab, var(--color-accent-600) 14%, transparent);
+    --accent-ring: color-mix(in oklab, var(--color-accent-600) 30%, transparent);
+  }
+
+  .dark {
+    --surface: var(--color-espresso-950);
+    --surface-raised: var(--color-espresso-900);
+    --surface-sunken: #150c07;
+    --line: color-mix(in oklab, var(--color-cream-300) 16%, transparent);
+    --line-strong: color-mix(in oklab, var(--color-cream-300) 30%, transparent);
+    --text: var(--color-cream-100);
+    --text-muted: color-mix(in oklab, var(--color-cream-100) 84%, transparent);
+    --text-faint: color-mix(in oklab, var(--color-cream-100) 66%, transparent);
+    --brand: var(--color-caramel-400);
+    --brand-soft: color-mix(in oklab, var(--color-caramel-400) 18%, transparent);
+    --accent: var(--color-accent-300);
+    --accent-soft: color-mix(in oklab, var(--color-accent-400) 20%, transparent);
+    --accent-ring: color-mix(in oklab, var(--color-accent-400) 40%, transparent);
+  }
+
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--surface);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
+  ::selection {
+    background: var(--accent-ring);
+    color: var(--text);
+  }
+
+  /* Keep native pickers/icons legible in dark mode. */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  .surface {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line);
+  }
+
+  .card {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: 0.875rem;
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--color-espresso-950) 6%, transparent);
+  }
+
+  .muted {
+    color: var(--text-muted);
+  }
+  .faint {
+    color: var(--text-faint);
+  }
+
+  .field {
+    width: 100%;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  .field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+  }
+  .field::placeholder {
+    color: var(--text-faint);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid var(--line);
+    background-color: var(--surface-raised);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 120ms, border-color 120ms, transform 80ms, opacity 120ms;
+  }
+  .btn:hover:not(:disabled) {
+    background-color: var(--surface-sunken);
+    border-color: var(--line-strong);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0.5px);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background-color: var(--color-espresso-500);
+    border-color: var(--color-espresso-500);
+    color: var(--color-cream-50);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-espresso-600);
+    border-color: var(--color-espresso-600);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    border-color: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--surface-sunken);
+    border-color: var(--line);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 9999px;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  .tab {
+    position: relative;
+    padding: 0.5rem 0.15rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 120ms, border-color 120ms;
+  }
+  .tab:hover {
+    color: var(--text);
+  }
+  .tab[data-active="true"] {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .th {
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    padding: 0.625rem 0.75rem;
+    white-space: nowrap;
+  }
+
+  .td {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    vertical-align: middle;
+  }
+}
+
+@layer utilities {
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 9999px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* The classic 1px dashed "cut here" divider used on recipe cards. */
+@utility rule-dashed {
+  border-top: 1px dashed var(--line-strong);
+}
