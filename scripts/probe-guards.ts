@@ -17,6 +17,9 @@ const ALLOWED: Record<string, string> = {
   // Requiring a session to sign in would be a chicken-and-egg bug. Its own
   // protections are the constant-time check, the lockout and safeNext().
   loginAction: "signing in cannot require a session",
+  // Same reasoning: signing up is how an anonymous visitor gets an account, so
+  // there is no session to require. Validation lives in registerCustomer().
+  registerAction: "signing up cannot require a session",
 };
 
 let failures = 0;

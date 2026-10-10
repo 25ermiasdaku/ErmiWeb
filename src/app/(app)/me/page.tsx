@@ -1,5 +1,5 @@
 import { Card, EmptyState, PageHeader, Stat } from "@/components/ui";
-import { PasswordForm, ProfileForm } from "@/components/account-forms";
+import { DeleteAccountForm, PasswordForm, ProfileForm } from "@/components/account-forms";
 import { gateSelf } from "@/lib/auth";
 import { PERMISSIONS, permissionDef } from "@/lib/permissions";
 import { getActivity, getMyOrders, getMySummary } from "@/lib/admin-queries";
@@ -175,6 +175,15 @@ export default async function MyAccountPage() {
           </div>
         </Card>
       </div>
+
+      {/* Danger zone */}
+      <Card
+        className="mt-4 ring-1 ring-inset ring-rose-500/25"
+        title="Delete account"
+        subtitle="Permanent, and only ever your own record. Type your username and password to confirm."
+      >
+        <DeleteAccountForm username={user!.username} />
+      </Card>
 
       {/* What this role can do */}
       <Card

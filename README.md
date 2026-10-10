@@ -11,6 +11,9 @@ area, and a per-person account page.
 - **Recipes** — the brew spec for every drink and the stock it consumes
 - **Accounts** — sign-in, roles, permissions, an audit trail
 - **Admin** — staff management, role editing, settings, reports, activity log
+- **Public site** — landing page, menu catalogue, offers, subscriptions, locations and brand story
+- **Customer accounts** — self sign-up, then order ahead and collect loyalty points
+- **Mobile app** — an Expo client in `mobile/` that talks to a JSON API over the same database
 
 ## Running it
 
@@ -39,7 +42,94 @@ you just want to look around, or `db:setup` to build your own cafe from empty.
 | `npm run test:flow` | Assert the two-sided confirmation, and that an order belongs to the account and not the name |
 | `npm run test:access` | Sign in as each role, assert every page is gated correctly (needs the dev server) |
 | `npm run test:nav` | Assert the sidebar and account states (needs the dev server) |
-| `npm run test:all` | All five |
+| `npm run test:account-close` | Register + delete a throwaway account through the live API (needs the dev server) |
+| `npm run test:all` | All six |
+
+## The public site
+
+The marketing site lives at the root (`/`) and needs no session. It is its own
+route group, `(marketing)`, with a public header and footer, so it renders
+independently of the signed-in shell.
+
+| Route                       | What it is                                              |
+| --------------------------- | ------------------------------------------------------- |
+| `/`                         | Landing page: hero, signature showcase, rewards, app     |
+| `/menu`                     | Catalogue **as information** — origins, roasts and tasting notes, no prices |
+| `/promotions`               | Hub for offers, subscriptions and rewards               |
+| `/promotions/offers`        | Seasonal and everyday promotions                        |
+| `/promotions/subscriptions` | Bean subscription plans                                 |
+| `/promotions/rewards`       | Loyalty programme, tiers and the live reward menu       |
+| `/locations`                | Café list, hours and directions                         |
+| `/about`                    | Brand story, sourcing and sustainability                |
+| `/register`                 | Customer self sign-up (public)                          |
+| `/login`                    | Sign in                                                 |
+
+The public site is **promotional and informational only.** It shows offers,
+brand story and a look at the menu; it does not sell. Ordering — the live menu
+with prices and the checkout — belongs to a signed-in customer, so every call
+to action points at `/register` or `/login` rather than an order button.
+
+The catalogue reads the **same `menu_items` table as the till**, so a drink an
+owner edits at the Point of Sale appears on the public menu without a code
+change. Editorial content — the story, tasting notes, offers, subscription
+plans and locations — lives in `src/lib/marketing.ts`, which imports nothing,
+so both server and client components can use it.
+
+**Two URLs moved out of the app's way** so the public site could own the root,
+and the staff POS could be named for what it is:
+
+- the dashboard moved from `/` to **`/dashboard`**
+- the Point of Sale moved from `/menu` to **`/pos`**
+
+`NavEntry`, `ROUTE_PERMISSION`, the sign-in redirect and the access probes were
+updated to match.
+
+## The mobile app
+
+`mobile/` is an Expo (React Native) client for customers: browse promotions and
+the menu, sign in or sign up, build a cart and place an order, then confirm it
+and track points. It shares the same SQLite database as the web app, through the
+JSON API below.
+
+```bash
+cd mobile
+npm install
+npx expo install --fix        # align native deps with the installed Expo SDK
+EXPO_PUBLIC_API_URL=http://localhost:3000 npx expo start
+```
+
+`EXPO_PUBLIC_API_URL` points the app at this server; it falls back to
+`http://localhost:3000`. On a physical device, use your machine's LAN address
+instead of `localhost`.
+
+### The JSON API
+
+The web app drives everything through server components and server actions, but
+a native client cannot render a server component, so a small read-mostly API
+lives under `src/app/api`. It is a thin skin over the same `lib` functions the
+web uses, so pricing, stock and loyalty can never diverge between the two.
+
+| Route                       | Auth   | What it does                                    |
+| --------------------------- | ------ | ----------------------------------------------- |
+| `GET  /api/menu`            | —      | The live catalogue with options                 |
+| `GET  /api/rewards`         | —      | Active rewards                                  |
+| `GET  /api/locations`       | —      | The store list                                  |
+| `GET  /api/promotions`      | —      | Offers, subscription plans, loyalty tiers       |
+| `GET  /api/about`           | —      | Brand story, values, sourcing, testimonials     |
+| `POST /api/auth/register`   | —      | Create a customer account, returns a token      |
+| `POST /api/auth/login`      | —      | Exchange credentials for a token                |
+| `POST /api/auth/logout`     | Bearer | Invalidate the token                            |
+| `GET  /api/me`              | Bearer | Your account and points                         |
+| `GET  /api/me/orders`       | Bearer | Your orders                                      |
+| `POST /api/me/orders`       | Bearer | Place an order (item/option ids, never prices)  |
+| `POST /api/me/orders/{id}`  | Bearer | `{"action":"confirm"｜"cancel"}`                 |
+| `POST /api/me/delete`       | Bearer | Erase your own account (takes `{"password": …}`) |
+
+The API authenticates with `Authorization: Bearer <token>` instead of the web's
+httpOnly cookie, because a native app has no cookie jar. The token is a session
+row just like the cookie's, stored as its SHA-256 digest. The same permission
+check (`orders.self`) gates every order call, resolved through `requireApiUser`
+and `requirePermission` in `src/lib/api.ts` and `my-order-service.ts`.
 
 ## Signing in
 
@@ -73,8 +163,9 @@ each sign-in shows a different button:
 | `theo`    | Theo Bright   | Nothing yet           | The menu, ready for a first order |
 
 `theo` has no loyalty record. It is created by his first order, which is the
-path a genuinely new customer takes — nobody accumulates a `members` row just
-by signing up.
+path a genuinely new customer takes through the till. A customer who
+**self-registers** at `/register` is different: their `members` row is created
+with the account, so points are ready before their first order.
 
 Every role also holds `orders.self`, so a member of staff on a break can order
 for themselves the same way. What they do not get is the till: the staff POS is
@@ -84,11 +175,35 @@ still `pos.use` + `orders.create`.
 account state without you having to create it. Sign in as `eli` to see the
 "switched off" message, and as `admin` to see them in the list.
 
+#### Deleting your own account
+
+Anyone can erase **their own account** from **My account** (`/me`) or from the
+mobile app's **Account** tab — and only their own. The row delete happens in one
+transaction shared by both surfaces (`src/lib/account-close.ts`):
+
+- the caller must re-enter their **password** (the web form also asks you to
+  type your username, mirroring the admin erase form), so a session left open
+  on a shared machine is not enough;
+- their `sessions` are revoked, the `users` row is deleted, and their linked
+  `members` loyalty record and ledger go with it — unless another account still
+  uses the same member row, in which case it is left standing;
+- their orders survive with the author link cut (`orders.placed_by` and
+  `orders.member_id` become NULL), and the activity log keeps its username
+  snapshot, so history still reads;
+- the **last owner is protected**, exactly as in the admin screen: the final
+  active owner cannot delete their account or the cafe loses its administrator.
+
+There is no undo and there is no admin-side restore — the web and API entry
+points (`deleteMyAccountAction` and `POST /api/me/delete`) are deliberately two
+thin wrappers over the same `closeAccount`, so neither surface can drift.
+
 ## The database
 
-It is one local SQLite file at `data/ermi.db`. There is no API layer: no
-`/api` routes, no environment variables, no outbound requests. Server
-components read the file directly and server actions write to it.
+It is one local SQLite file at `data/ermi.db`. The web app needs no API: server
+components read the file directly and server actions write to it, with no
+environment variables and no outbound requests. The one exception is the small
+JSON API under `src/app/api`, added so the native app can reach the same data —
+it is a thin wrapper over the same `lib` functions, not a second backend.
 
 **Demo data is opt-in.** The app never inserts demo rows on its own — if the
 file has no menu items it stays that way, so you can build your own cafe with
@@ -169,7 +284,14 @@ Notes on a few decisions:
 An account is either **staff** (a user with limited permissions) or a
 **customer** (a person who drinks coffee). Both sign in through the same form
 and hold exactly one role, so the difference is entirely in what the role
-grants. There is no public sign-up.
+grants.
+
+Anyone can create a **customer** account from the public site at `/register`.
+Registration writes the `users` row and its linked `members` loyalty record in
+one transaction, so a brand-new customer can order (and earn) immediately. It
+never grants a staff role: the account is created with the `customer` role and
+nothing else. Staff accounts are still made from the admin area by someone with
+`users.create`.
 
 ### Ordering your own coffee
 
@@ -315,6 +437,7 @@ through every table cell for little gain in a single-cafe system.
   is no compile step and no `node-gyp` on Windows. Requires Node 22.5+.
 - Tailwind CSS v4, warm cafe palette, light and dark themes
 - Server Actions for all writes; server components for all reads
+- **Expo / React Native** for the customer app, over the JSON API
 
 The dark theme is applied by a small inline script before first paint, so
 reloading does not flash the wrong colours.
@@ -338,8 +461,13 @@ scripts/
   probe-nav.ts        the sidebar and account states
 src/
   app/
-    login/            the only public route
+    (marketing)/      the public site: landing, menu, offers, about, locations
+    register/         customer self sign-up (public)
+    login/            sign in (public); the signed-in app links here too
+    api/              JSON API for the mobile app (menu, auth, me, orders)
     (app)/            everything signed in; the group supplies the shell
+      dashboard/      the trading dashboard (was at /)
+      pos/            the Point of Sale (was at /menu)
       admin/          users, roles, settings, reports, logs
       me/             your own profile, orders, activity and password
       my-orders/      ordering coffee on your own account
@@ -348,13 +476,18 @@ src/
   lib/
     db.ts             connection, migration, query helpers, transactions
     queries.ts        every cafe read
+    marketing.ts      public-site copy: story, tasting notes, offers, locations
     actions.ts        cafe server actions (all writes)
-    auth.tsx          sessions, guards, lockout
-    auth-actions.ts   sign in/out, your profile, your password
+    auth.tsx          sessions, guards, lockout, bearer-token lookup
+    authenticate.ts   username/password check, shared by web and API
+    register.ts       create a customer account + loyalty record
+    auth-actions.ts   sign in/up/out, your profile, your password
     admin-actions.ts  account, role and settings mutations
     admin-queries.ts  admin and personal reads
+    api.ts            JSON response, bearer auth and shaping helpers
     my-order.ts       reads scoped to one account, plus the types
-    my-order-actions.ts place / confirm / cancel your own order
+    my-order-service.ts place / confirm / cancel, shared by web and API
+    my-order-actions.ts the web "use server" entry point for the above
     permissions.ts    the 26-permission catalogue and system roles
     lockout.ts        lockout arithmetic, free of next/headers
     activity.ts       audit writes; activity-labels.ts for the db-free labels
@@ -364,6 +497,7 @@ src/
     fulfilment.ts     price validation and stock deduction rules
     order-flow.ts     the order status machine
     format.ts         money, dates, durations
+mobile/               Expo (React Native) customer app; see its README
 data/ermi.db          the live database (git-ignored)
 ```
 
@@ -427,6 +561,13 @@ move and the stock fall — has not been driven end to end. Server actions need 
 real browser, and no browser is attached to this project. The checks above cover
 the rules that action enforces, but the click itself has not been observed.
 
+The **JSON API** was exercised directly against the running server: registration,
+sign-in, `/api/me`, placing an order, confirming it, refusing a second confirm,
+refusing to cancel a started order, and refusing to touch another account's
+order all behaved. The **mobile app** in `mobile/` is written against that same
+contract but has not been run on a device or simulator here, because installing
+the Expo toolchain is a separate step.
+
 ## Known scope limits
 
 This is a self-contained demo, so a few things are deliberately left out:
@@ -444,3 +585,7 @@ This is a self-contained demo, so a few things are deliberately left out:
   are refunded, because nothing was consumed.
 - **Activity rows are never pruned.** The session table has a "purge expired"
   button; the audit log deliberately does not.
+- **Self-registration does not verify the email yet.** Signing up creates an
+  account for whatever address is typed, and if a walk-in loyalty record already
+  exists under that address it is linked without an OTP check. An email
+  confirmation step is the outstanding work before this is exposed publicly.

@@ -10,8 +10,8 @@ import type { NavLink } from "@/components/nav";
 export type NavEntry = NavLink & { permission: string | null };
 
 export const NAV_ENTRIES: NavEntry[] = [
-  { href: "/", label: "Dashboard", icon: "◈", group: "main", permission: "dashboard.view" },
-  { href: "/menu", label: "Point of Sale", icon: "☕", group: "main", permission: "pos.use" },
+  { href: "/dashboard", label: "Dashboard", icon: "◈", group: "main", permission: "dashboard.view" },
+  { href: "/pos", label: "Point of Sale", icon: "☕", group: "main", permission: "pos.use" },
   { href: "/orders", label: "Order Board", icon: "▤", group: "main", permission: "orders.view" },
   // Order for yourself and follow it through. Granted to every role, so a
   // customer and a member of staff order the same way.

@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { changeOwnPassword, updateOwnProfile } from "@/lib/auth-actions";
+import { useActionState, useState } from "react";
+import { changeOwnPassword, deleteMyAccountAction, updateOwnProfile } from "@/lib/auth-actions";
 import { EMPTY_STATE } from "@/lib/action-state";
 import { FormMessage } from "./form-parts";
 
@@ -113,6 +113,67 @@ export function PasswordForm() {
 
       <button className="btn btn-primary" disabled={pending}>
         {pending ? "Changing…" : "Change password"}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * Permanently erases the account behind the signed-in session. Two confirmations,
+ * mirroring the admin's erase form: the exact username, then the password. The
+ * server re-verifies both, so a session left open on a shared computer cannot
+ * lose the account by accident.
+ */
+export function DeleteAccountForm({ username }: { username: string }) {
+  const [state, formAction, pending] = useActionState(deleteMyAccountAction, EMPTY_STATE);
+  const [typed, setTyped] = useState("");
+  const matches = typed === username;
+  const errs = state.fieldErrors ?? {};
+
+  return (
+    <form action={formAction} className="space-y-3">
+      <FormMessage state={state} />
+
+      <label className="block" htmlFor="d_username">
+        <span className="mb-1 block text-[0.75rem] font-medium">
+          Type <code className="font-mono">{username}</code> to confirm
+        </span>
+        <input
+          id="d_username"
+          name="confirm_username"
+          className="field font-mono"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoComplete="off"
+          required
+        />
+        {errs.confirm_username && (
+          <p className="mt-1 text-[0.6875rem] text-rose-600 dark:text-rose-400">{errs.confirm_username}</p>
+        )}
+      </label>
+
+      <label className="block" htmlFor="d_password">
+        <span className="mb-1 block text-[0.75rem] font-medium">Your password</span>
+        <input
+          id="d_password"
+          name="password"
+          type="password"
+          className="field"
+          autoComplete="current-password"
+          required
+        />
+        {errs.password && (
+          <p className="mt-1 text-[0.6875rem] text-rose-600 dark:text-rose-400">{errs.password}</p>
+        )}
+      </label>
+
+      <p className="text-[0.75rem] muted">
+        This erases your account and its loyalty record for good. Your orders stay in the history
+        but are unlinked from the account, so this cannot be undone.
+      </p>
+
+      <button className="btn text-rose-700 dark:text-rose-300" disabled={pending || !matches}>
+        {pending ? "Deleting…" : "Delete my account permanently"}
       </button>
     </form>
   );

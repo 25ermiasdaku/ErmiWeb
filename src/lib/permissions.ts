@@ -50,6 +50,13 @@ export const PERMISSIONS: PermissionDef[] = [
       "Advance a ticket to brewing or ready, or cancel it. A customer's own confirmations are never the staff's to make.",
   },
   {
+    key: "orders.self",
+    label: "Order for yourself",
+    category: "Orders",
+    description:
+      "Order coffee on your own account, then confirm it to the cafe and confirm collection.",
+  },
+  {
     key: "menu.manage",
     label: "Manage the menu",
     category: "Menu",
@@ -104,13 +111,6 @@ export const PERMISSIONS: PermissionDef[] = [
     description: "Spend a member's points at the till.",
   },
   {
-    key: "orders.self",
-    label: "Order for yourself",
-    category: "Orders",
-    description:
-      "Order coffee on your own account, then confirm it to the cafe and confirm collection.",
-  },
-  {
     key: "reports.view",
     label: "View system reports",
     category: "Reports",
@@ -143,8 +143,8 @@ export function permissionDef(key: string): PermissionDef | undefined {
 
 /** The permissions guarding each route, used by the nav and the page guards. */
 export const ROUTE_PERMISSION: Record<string, string> = {
-  "/": "dashboard.view",
-  "/menu": "pos.use",
+  "/dashboard": "dashboard.view",
+  "/pos": "pos.use",
   "/orders": "orders.view",
   "/my-orders": "orders.self",
   "/inventory": "inventory.view",

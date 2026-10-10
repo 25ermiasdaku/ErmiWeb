@@ -84,8 +84,8 @@ export default async function AdminSettingsPage() {
           </li>
           <li>
             <strong className="font-medium">Stock levels and menu prices</strong> are edited where
-            they belong, on the <a href="/inventory">Inventory</a> and <a href="/menu">Menu</a>{" "}
-            pages.
+            they belong, on the <a href="/inventory">Inventory</a> and{" "}
+            <a href="/pos">Point of Sale</a> pages.
           </li>
         </ul>
         <p className="mt-3 text-[0.75rem]" style={{ color: "var(--text-faint)" }}>

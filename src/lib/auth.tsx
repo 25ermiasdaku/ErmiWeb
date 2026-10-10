@@ -79,11 +79,18 @@ export async function clientIp(): Promise<string> {
 // Session lifecycle
 // ---------------------------------------------------------------
 
-/** Create a session and set the cookie. Returns the raw token. */
-export async function createSession(userId: number): Promise<string> {
+/**
+ * Insert a session row and return the raw token, without touching cookies.
+ *
+ * This is the seam the mobile API uses: a native client cannot be handed an
+ * httpOnly cookie, so `/api/auth/login` returns this token in the JSON body
+ * and the app sends it back as `Authorization: Bearer <token>`.
+ */
+export function createSessionToken(
+  userId: number,
+  meta: { userAgent?: string; ip?: string } = {},
+): string {
   const token = randomBytes(32).toString("hex");
-  const h = await cookies();
-  const agent = (h.get("user-agent")?.value ?? "").slice(0, 200);
 
   run("DELETE FROM sessions WHERE expires_at < datetime('now')");
   run(
@@ -91,9 +98,20 @@ export async function createSession(userId: number): Promise<string> {
     hashToken(token),
     userId,
     isoIn(SESSION_TTL_DAYS),
-    await clientIp(),
-    agent,
+    (meta.ip ?? "local").slice(0, 45),
+    (meta.userAgent ?? "").slice(0, 200),
   );
+
+  return token;
+}
+
+/** Create a session and set the cookie. Returns the raw token. */
+export async function createSession(userId: number): Promise<string> {
+  const h = await cookies();
+  const token = createSessionToken(userId, {
+    userAgent: h.get("user-agent")?.value ?? "",
+    ip: await clientIp(),
+  });
 
   h.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -106,6 +124,11 @@ export async function createSession(userId: number): Promise<string> {
   return token;
 }
 
+/** Delete the session behind a raw token (the bearer-token logout path). */
+export function destroySessionToken(token: string): void {
+  if (token) run("DELETE FROM sessions WHERE id = ?", hashToken(token));
+}
+
 export async function destroySession(): Promise<void> {
   const h = await cookies();
   const token = h.get(SESSION_COOKIE)?.value;
@@ -114,14 +137,10 @@ export async function destroySession(): Promise<void> {
 }
 
 /**
- * The signed-in user, or null. Memoised per request so a page that checks
- * several permissions only reads the database once.
+ * Load a signed-in user from a session id (the stored SHA-256 digest). Shared
+ * by the cookie path and the bearer-token path so the two can never drift.
  */
-export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const h = await cookies();
-  const token = h.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-
+function loadSessionUser(sessionId: string): SessionUser | null {
   const row = get<UserRow>(
     `SELECT u.id, u.username, u.email, u.full_name, u.job_title, u.is_active,
             u.must_change_password, u.last_login_at, u.member_id,
@@ -131,7 +150,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
        JOIN roles r ON r.id = u.role_id
       WHERE s.id = ? AND s.expires_at > datetime('now')
         AND u.deleted_at IS NULL`,
-    hashToken(token),
+    sessionId,
   );
   if (!row || row.is_active !== 1) return null;
 
@@ -146,7 +165,27 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   );
 
   return { ...row, permissions: keys };
+}
+
+/**
+ * The signed-in user, or null. Memoised per request so a page that checks
+ * several permissions only reads the database once.
+ */
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
+  const h = await cookies();
+  const token = h.get(SESSION_COOKIE)?.value;
+  return token ? loadSessionUser(hashToken(token)) : null;
 });
+
+/**
+ * Resolve a session from a raw token — the `Authorization: Bearer …` path the
+ * native app uses. Cookie-free and deliberately not memoised, because API
+ * requests are one-shot and each carries its own token.
+ */
+export function userForToken(token: string): SessionUser | null {
+  if (!token) return null;
+  return loadSessionUser(hashToken(token));
+}
 
 /** Current user, or throw. Use inside server actions. */
 export async function requireUser(): Promise<SessionUser> {
@@ -225,7 +264,7 @@ function NoAccess({ permission, user }: { permission: string; user: SessionUser 
         Ask an owner or manager if you need it. They can change this under Admin → Roles.
       </p>
       <div className="mt-5 flex justify-center gap-2">
-        <a href="/" className="btn">
+        <a href="/dashboard" className="btn">
           Dashboard
         </a>
         <a href="/me" className="btn btn-ghost">

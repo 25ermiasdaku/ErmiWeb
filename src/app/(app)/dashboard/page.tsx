@@ -21,7 +21,7 @@ export default async function DashboardPage() {
         title="Dashboard"
         subtitle="Trading today, stock pressure and the loyalty book at a glance."
         actions={
-          <Link href="/menu" className="btn btn-primary">
+          <Link href="/pos" className="btn btn-primary">
             New order
           </Link>
         }

@@ -25,14 +25,20 @@ function isEssential(key: string): boolean {
   return OWNER_ESSENTIAL.includes(key);
 }
 
+/**
+ * Group the catalogue by category name, regardless of array position, so a
+ * category (e.g. "Orders", which also holds `orders.self` declared further
+ * down) is rendered once even when its members are scattered through the
+ * list. First appearance in `perms` decides the position in the matrix.
+ */
 function byCategory(perms: PermissionDef[]): Array<[string, PermissionDef[]]> {
-  const out: Array<[string, PermissionDef[]]> = [];
+  const groups = new Map<string, PermissionDef[]>();
   for (const p of perms) {
-    const last = out[out.length - 1];
-    if (last && last[0] === p.category) last[1].push(p);
-    else out.push([p.category, [p]]);
+    const list = groups.get(p.category);
+    if (list) list.push(p);
+    else groups.set(p.category, [p]);
   }
-  return out;
+  return [...groups.entries()];
 }
 
 const CATEGORIES = byCategory(PERMISSIONS);

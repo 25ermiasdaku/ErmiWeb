@@ -180,7 +180,7 @@ export async function placeOrder(
       return orderId;
     });
 
-    refresh("/", "/menu", "/orders", "/inventory", "/loyalty", "/me");
+    refresh("/dashboard", "/pos", "/orders", "/inventory", "/loyalty", "/me");
     logActivity({
       action: "order.place",
       entity: "order",
@@ -411,7 +411,7 @@ export async function createMember(formData: FormData): Promise<void> {
 
   run("INSERT INTO members (name, email, phone, notes) VALUES (?, ?, ?, ?)", name, email, String(formData.get("phone") ?? "").trim(), String(formData.get("notes") ?? "").trim());
   logActivity({ action: "member.create", entity: "member", detail: `${name} <${email}>`, userId: staff.id, username: staff.username });
-  refresh("/loyalty", "/menu");
+  refresh("/loyalty", "/pos");
 }
 
 export async function adjustMemberPoints(memberId: number, delta: number, reason: string): Promise<void> {
@@ -467,7 +467,7 @@ export async function redeemReward(memberId: number, rewardId: number, orderId: 
     );
     if (orderId) run("UPDATE orders SET points_spent = points_spent + ? WHERE id = ?", reward.points_cost, orderId);
   });
-  refresh("/loyalty", "/orders", "/menu");
+  refresh("/loyalty", "/orders", "/pos");
   logActivity({
     action: "member.redeem",
     entity: "member",
@@ -486,7 +486,7 @@ export async function toggleMenuItem(itemId: number, active: boolean): Promise<v
   const staff = await requirePermission("menu.manage");
   const item = get<{ name: string }>("SELECT name FROM menu_items WHERE id = ?", itemId);
   run("UPDATE menu_items SET active = ? WHERE id = ?", active ? 1 : 0, itemId);
-  refresh("/menu", "/recipes", "/inventory");
+  refresh("/pos", "/recipes", "/inventory");
   logActivity({
     action: "menu.toggle",
     entity: "menu_item",

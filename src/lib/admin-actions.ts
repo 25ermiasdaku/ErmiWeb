@@ -574,7 +574,7 @@ export async function updateSettingsAction(_prev: ActionState, formData: FormDat
     detail: `Saved ${accepted.length} setting(s): ${accepted.join(", ")}`,
   });
   // The till reads tax and points live, so those pages need to re-render.
-  refresh("/admin/settings", "/menu", "/", "/orders");
+  refresh("/admin/settings", "/pos", "/dashboard", "/orders");
   return { ok: true, message: "Settings saved." };
 }
 

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/lib/auth-actions";
 import { initials } from "@/lib/format";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export type NavLink = {
   href: Route;
@@ -43,7 +44,7 @@ export function Nav({ links, user }: { links: NavLink[]; user: NavUser | null })
         className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-3 lg:hidden"
         style={{ backgroundColor: "var(--surface-raised)" }}
       >
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <Brand />
         </Link>
         <div className="flex items-center gap-2">
@@ -79,7 +80,7 @@ export function Nav({ links, user }: { links: NavLink[]; user: NavUser | null })
         className="hidden w-60 shrink-0 flex-col gap-1 border-r px-3 py-5 lg:flex"
         style={{ backgroundColor: "var(--surface-raised)" }}
       >
-        <Link href="/" className="mb-6 flex items-center gap-2.5 px-2">
+        <Link href="/dashboard" className="mb-6 flex items-center gap-2.5 px-2">
           <Brand />
         </Link>
 
@@ -193,39 +194,6 @@ function Brand() {
 }
 
 function isActive(pathname: string, href: Route): boolean {
-  if (href === "/") return pathname === "/";
+  if (href === "/dashboard") return pathname === "/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function ThemeToggle() {
-  const [dark, setDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
-
-  function toggle() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    try {
-      localStorage.setItem("ermi-theme", next ? "dark" : "light");
-    } catch {
-      // Private mode — the class is still applied for this session.
-    }
-  }
-
-  return (
-    <button
-      className="btn px-2 py-1.5"
-      onClick={toggle}
-      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-      title={dark ? "Light theme" : "Dark theme"}
-    >
-      {/* Render a stable glyph until mounted to avoid hydration mismatch. */}
-      {mounted ? (dark ? "☀" : "☾") : "◐"}
-    </button>
-  );
 }

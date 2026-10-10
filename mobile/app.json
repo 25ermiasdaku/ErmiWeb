@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Ermi Coffee",
+    "slug": "ermi-coffee",
+    "scheme": "ermi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "coffee.ermi.app"
+    },
+    "android": {
+      "package": "coffee.ermi.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    }
+  }
+}

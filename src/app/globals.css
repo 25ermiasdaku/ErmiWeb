@@ -257,3 +257,99 @@
 @utility rule-dashed {
   border-top: 1px dashed var(--line-strong);
 }
+
+/* ---------------------------------------------------------------
+   Public marketing site
+   A handful of reusable pieces so the pages share one rhythm. The
+   sizes step up on wider screens; the palette is the same warm one
+   the app uses, so light and dark both read as Ermi.
+   --------------------------------------------------------------- */
+@layer components {
+  .mk-wrap {
+    width: 100%;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .mk-wrap {
+      padding-inline: 1.75rem;
+    }
+  }
+
+  .mk-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--brand);
+  }
+
+  .mk-h1 {
+    font-size: clamp(2.1rem, 5.2vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -0.028em;
+    font-weight: 700;
+  }
+  .mk-h2 {
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    line-height: 1.14;
+    letter-spacing: -0.022em;
+    font-weight: 650;
+  }
+  .mk-h3 {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .mk-lead {
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--text-muted);
+  }
+
+  .btn-lg {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9375rem;
+    border-radius: 0.7rem;
+  }
+  /* Inverse button for use on the dark espresso hero. */
+  .btn-cream {
+    background-color: var(--color-cream-50);
+    border-color: var(--color-cream-50);
+    color: var(--color-espresso-900);
+  }
+  .btn-cream:hover:not(:disabled) {
+    background-color: var(--color-cream-200);
+    border-color: var(--color-cream-200);
+  }
+
+  .mk-card {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    transition: border-color 140ms, transform 140ms, box-shadow 140ms;
+  }
+  .mk-card-hover:hover {
+    border-color: var(--line-strong);
+    box-shadow: 0 10px 30px -18px color-mix(in oklab, var(--color-espresso-950) 55%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .mk-field {
+    width: 100%;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  .mk-field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+  }
+}
+

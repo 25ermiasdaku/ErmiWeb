@@ -9,37 +9,12 @@ import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { get, run } from "./db";
 import { logActivity } from "./activity";
-import {
-  clearFailedLogins,
-  createSession,
-  destroySession,
-  isLocked,
-  lockoutMinutes,
-  recordFailedLogin,
-  requireUser,
-} from "./auth";
+import { createSession, destroySession, requireUser } from "./auth";
+import { authenticate } from "./authenticate";
 import { hashPassword, passwordProblem, verifyPassword } from "./password";
-import { attemptsLeft } from "./lockout";
+import { registerCustomer } from "./register";
+import { closeAccount } from "./account-close";
 import type { ActionState } from "./action-state";
-
-/**
- * A well-formed but never-matching digest. Verifying against it when the
- * username is unknown makes a wrong username cost the same wall-clock time
- * as a wrong password, so the form cannot be used to enumerate accounts.
- */
-const ABSENT_USER_DIGEST = `${"0".repeat(32)}:${"0".repeat(128)}`;
-
-type LoginRow = {
-  id: number;
-  username: string;
-  full_name: string;
-  password_hash: string;
-  role_slug: string;
-  is_active: number;
-  deleted_at: string | null;
-  failed_logins: number;
-  locked_until: string | null;
-};
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -51,59 +26,52 @@ function safeNext(raw: string): string {
 }
 
 export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const username = str(formData, "username").toLowerCase();
-  const password = String(formData.get("password") ?? "");
   const next = safeNext(str(formData, "next"));
-
-  if (!username || !password) {
-    return { ok: false, message: "Enter your username and password." };
-  }
-
-  const user = get<LoginRow>(
-    `SELECT u.id, u.username, u.full_name, u.password_hash, u.is_active, u.deleted_at,
-            u.failed_logins, u.locked_until, r.slug AS role_slug
-       FROM users u JOIN roles r ON r.id = u.role_id
-      WHERE lower(u.username) = ?`,
-    username,
+  const result = await authenticate(
+    str(formData, "username"),
+    String(formData.get("password") ?? ""),
   );
 
-  const ok = await verifyPassword(password, user?.password_hash ?? ABSENT_USER_DIGEST);
-
-  if (!user) {
-    logActivity({ action: "auth.login_failed", entity: "user", detail: `Unknown username "${username}"` });
-    return { ok: false, message: "Incorrect username or password." };
+  if (!result.ok || result.userId === undefined) {
+    return { ok: false, message: result.message };
   }
 
-  // Everything below this line is only reachable with the right password, so
-  // it is safe to be specific about the account's state.
-  if (!ok) {
-    recordFailedLogin(user.id, user.failed_logins);
-    const remaining = attemptsLeft(user.failed_logins + 1);
-    logActivity({ action: "auth.login_failed", entity: "user", entityId: user.id, username: user.username, detail: `Wrong password for "${user.username}"` });
-    return {
-      ok: false,
-      message:
-        remaining > 0
-          ? `Incorrect username or password. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`
-          : "Incorrect username or password. This account is now locked for 15 minutes.",
-    };
+  await createSession(result.userId);
+
+  // A customer lands on their orders; staff land on the dashboard. An explicit
+  // same-origin `next` from safeNext() still wins over this default.
+  const fallback: Route = result.role === "customer" ? "/my-orders" : "/dashboard";
+  const target = next === "/" ? fallback : (next as Route);
+
+  redirect(target);
+}
+
+/**
+ * Create a customer account from the public sign-up form, then sign in.
+ *
+ * Like `loginAction`, this must not require a session — there isn't one yet.
+ * The account is created and signed in as one flow so a new customer lands
+ * straight on the ordering page instead of having to type the same details
+ * again. `registerCustomer` does the validation and the write.
+ */
+export async function registerAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const result = await registerCustomer({
+    fullName: str(formData, "full_name"),
+    email: str(formData, "email"),
+    phone: str(formData, "phone"),
+    password: String(formData.get("password") ?? ""),
+    confirmPassword: String(formData.get("confirm_password") ?? ""),
+  });
+
+  if (!result.ok || result.userId === undefined) {
+    return { ok: false, message: result.message, fieldErrors: result.fieldErrors };
   }
 
-  if (isLocked(user)) {
-    return { ok: false, message: `Too many failed attempts. Try again in ${lockoutMinutes(user)} minute(s).` };
-  }
-
-  if (user.is_active !== 1 || user.deleted_at) {
-    logActivity({ action: "auth.login_failed", entity: "user", entityId: user.id, username: user.username, detail: "Account is not active" });
-    return { ok: false, message: "This account is not active. Ask a manager to switch it back on." };
-  }
-
-  clearFailedLogins(user.id);
-  await createSession(user.id);
-  logActivity({ action: "auth.login", entity: "user", entityId: user.id, username: user.username, detail: `Role: ${user.role_slug}` });
-
-  // safeNext() has already guaranteed this is a same-origin path.
-  redirect(next as Route);
+  await createSession(result.userId);
+  redirect("/my-orders");
 }
 
 export async function logoutAction(): Promise<void> {
@@ -189,4 +157,38 @@ export async function changeOwnPassword(
   logActivity({ action: "auth.password_changed", entity: "user", entityId: user.id, userId: user.id, username: user.username });
 
   return { ok: true, message: "Password changed." };
+}
+
+/**
+ * Permanently erase the signed-in account.
+ *
+ * The web form doubles up: type your username, then re-enter the password. The
+ * password is the real check (in `closeAccount`, shared with the mobile API) —
+ * a session on a shared computer must not be enough to erase an account. The
+ * last-owner guard also lives in `closeAccount`. On success the cookie session
+ * is dropped and the person lands on the public homepage.
+ */
+export async function deleteMyAccountAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireUser();
+
+  if (str(formData, "confirm_username") !== user.username) {
+    return {
+      ok: false,
+      message: "The username did not match, so nothing was erased.",
+      fieldErrors: { confirm_username: "Did not match." },
+    };
+  }
+
+  const result = await closeAccount(user, String(formData.get("password") ?? ""));
+  if (!result.ok) {
+    return { ok: false, message: result.message, fieldErrors: result.fieldErrors };
+  }
+
+  // The user row is gone, so the session row was already deleted by the FK
+  // cascade. Dropping the cookie keeps this tab from looking signed in anyway.
+  await destroySession();
+  redirect("/");
 }

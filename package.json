@@ -17,7 +17,8 @@
     "test:access": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/probe-permissions.ts",
     "test:nav": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/probe-nav.ts",
     "test:flow": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/probe-order-flow.ts",
-    "test:all": "npm run test:guards && npm run test:auth && npm run test:flow && npm run test:access && npm run test:nav"
+    "test:account-close": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/probe-account-close.ts",
+    "test:all": "npm run test:guards && npm run test:auth && npm run test:flow && npm run test:access && npm run test:nav && npm run test:account-close"
   },
   "dependencies": {
     "next": "^15.5.4",

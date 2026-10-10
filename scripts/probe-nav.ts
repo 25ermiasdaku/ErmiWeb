@@ -38,7 +38,7 @@ async function htmlAs(token: string, path: string) {
 }
 
 const NAV_LINKS = [
-  "/menu", "/orders", "/my-orders", "/inventory", "/loyalty", "/recipes", "/me",
+  "/pos", "/orders", "/my-orders", "/inventory", "/loyalty", "/recipes", "/me",
   "/admin", "/admin/users", "/admin/roles", "/admin/reports",
   "/admin/settings", "/admin/logs",
 ];
@@ -71,7 +71,7 @@ for (const username of ["admin", "manager", "barista", "cashier", "ava"]) {
 console.log("\n=== customer is shut out of the staff tools ===");
 {
   const token = mintSession("ava");
-  for (const path of ["/", "/menu", "/orders", "/inventory", "/loyalty", "/recipes", "/admin", "/admin/users"]) {
+  for (const path of ["/dashboard", "/pos", "/orders", "/inventory", "/loyalty", "/recipes", "/admin", "/admin/users"]) {
     const { status, html } = await htmlAs(token, path);
     const denied = status === 200 && /You do not have access to this page/i.test(html);
     check(`customer blocked from ${path}`, denied, `status ${status}`);

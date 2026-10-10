@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { getCurrentUser } from "@/lib/auth";
@@ -20,7 +21,8 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   // Already signed in — no reason to show a second sign-in form.
-  if (await getCurrentUser()) redirect("/");
+  const current = await getCurrentUser();
+  if (current) redirect(current.role_slug === "customer" ? "/my-orders" : "/dashboard");
 
   const { next } = await searchParams;
   const cafeName = getSetting("cafe_name") || "Ermi Coffee";
@@ -48,6 +50,12 @@ export default async function LoginPage({
 
         <div className="card p-5">
           <LoginForm next={next} />
+          <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--text-muted)" }}>
+            New here?{" "}
+            <Link href="/register" className="font-medium" style={{ color: "var(--brand)" }}>
+              Create an account
+            </Link>
+          </p>
         </div>
 
         {accounts && (

@@ -12,7 +12,7 @@ const BASE = "http://localhost:3000";
 const COOKIE = "ermi_session";
 
 const PATHS = [
-  "/", "/menu", "/orders", "/my-orders", "/inventory", "/loyalty", "/recipes", "/me",
+  "/dashboard", "/pos", "/orders", "/my-orders", "/inventory", "/loyalty", "/recipes", "/me",
   "/admin", "/admin/users", "/admin/roles", "/admin/reports",
   "/admin/settings", "/admin/logs",
 ];
@@ -47,8 +47,8 @@ function grants(): Map<string, Set<string>> {
 }
 
 const ROUTE_PERM: Record<string, string | null> = {
-  "/": "dashboard.view",
-  "/menu": "pos.use",
+  "/dashboard": "dashboard.view",
+  "/pos": "pos.use",
   "/orders": "orders.view",
   "/my-orders": "orders.self",
   "/inventory": "inventory.view",
@@ -125,7 +125,7 @@ for (const username of ["admin", "manager", "barista", "cashier", "ava"]) {
 
 // Anonymous: everything but /login must bounce to the sign-in page.
 console.log(`\n=== anonymous ===`);
-for (const path of ["/", "/me", "/admin", "/inventory"]) {
+for (const path of ["/dashboard", "/me", "/admin", "/inventory"]) {
   const res = await fetch(`${BASE}${path}`, { redirect: "manual" });
   const loc = res.headers.get("location") ?? "(none)";
   const good = res.status === 307 && loc.includes("/login");
